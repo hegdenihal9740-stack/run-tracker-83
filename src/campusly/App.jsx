@@ -53,6 +53,40 @@ function percent(score, total) { return total ? Math.round((score / total) * 100
 function initials(name = '') { return name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase() }
 function getGrade(p) { return p >= 90 ? 'A+' : p >= 80 ? 'A' : p >= 70 ? 'B+' : p >= 60 ? 'B' : p >= 50 ? 'C' : 'Needs work' }
 function todayLabel() { return new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date()) }
+const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+function todayShort() { return DAY_SHORT[new Date().getDay()] }
+export function daysUntil(dateStr, now = new Date()) { const d = new Date(dateStr); if (isNaN(d)) return null; const a = new Date(now.getFullYear(), now.getMonth(), now.getDate()); const b = new Date(d.getFullYear(), d.getMonth(), d.getDate()); return Math.round((b - a) / 86400000) }
+export function dueInfo(a, now = new Date()) {
+  if (a.status === 'Submitted') return { label: 'Submitted', tone: 'green' }
+  const n = daysUntil(a.due, now)
+  if (n === null) return { label: `Due ${a.due}`, tone: 'blue' }
+  if (n < 0) return { label: `Overdue by ${-n} day${n === -1 ? '' : 's'}`, tone: 'red' }
+  if (n === 0) return { label: 'Due today', tone: 'red' }
+  if (n === 1) return { label: 'Due tomorrow', tone: 'orange' }
+  if (n <= 3) return { label: `Due in ${n} days`, tone: 'orange' }
+  return { label: `Due in ${n} days`, tone: 'blue' }
+}
+// How many more classes can be missed while staying at or above 75%, or how many must be attended to get back.
+export function attendanceBuffer(present, total, min = 0.75) {
+  if (total === 0) return { safe: true, count: 0 }
+  if (present / total >= min) return { safe: true, count: Math.floor(present / min - total) }
+  return { safe: false, count: Math.ceil((min * total - present) / (1 - min)) }
+}
+function toMinutes(t) { const m = /(\d+):(\d+)\s*(AM|PM)/i.exec(t || ''); if (!m) return 0; let h = +m[1] % 12; if (m[3].toUpperCase() === 'PM') h += 12; return h * 60 + +m[2] }
+function nextClass(timetable, now = new Date()) {
+  const order = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+  const todayIdx = order.indexOf(DAY_SHORT[now.getDay()])
+  const mins = now.getHours() * 60 + now.getMinutes()
+  for (let off = 0; off < 7; off++) {
+    const idx = todayIdx < 0 ? off : todayIdx + off
+    if (idx >= order.length) break
+    const d = timetable.find(t => t.day === order[idx]); if (!d) continue
+    const c = d.classes.find(c => off > 0 || toMinutes(c.time) + 60 > mins)
+    if (c) return { ...c, day: d.day, date: d.date, when: off === 0 ? (toMinutes(c.time) <= mins ? 'Happening now' : 'Today') : off === 1 ? 'Tomorrow' : d.day }
+  }
+  return null
+}
+function DueTag({ a }) { const i = dueInfo(a); return <span className={cx('due-tag', `due-${i.tone}`)}><Clock3 size={12}/>{i.label}</span> }
 
 function Login({ onLogin }) {
   const [mode, setMode] = useState('signin')
@@ -158,8 +192,14 @@ function Dashboard({ data, setPage }) {
   const attendanceRate = Math.round(data.attendance.filter(a => a.status === 'Present').length / Math.max(1, data.attendance.length) * 100)
   const average = data.marks.filter(m => m.score !== null && m.status === 'Published').reduce((sum, m) => sum + percent(m.score, m.total), 0) / Math.max(1, data.marks.filter(m => m.score !== null && m.status === 'Published').length)
   const upcoming = [...data.assignments].filter(a => a.status !== 'Submitted').sort((a, b) => new Date(a.due) - new Date(b.due)).slice(0, 3)
+  const urgent = upcoming.filter(a => { const n = daysUntil(a.due); return n !== null && n <= 2 })
+  const next = nextClass(data.timetable)
+  const pending = data.assignments.filter(a => a.status !== 'Submitted').length
   return <div className="page-stack">
-    <div className="welcome-banner"><div className="welcome-copy"><span className="welcome-label"><Sparkles size={14}/> WELCOME BACK</span><h2>Make today <em>count.</em></h2><p>{data.assignments.filter(a => a.status !== 'Submitted').length} tasks pending · {attendanceRate}% attendance this month</p><div className="welcome-actions"><button className="primary-button" onClick={() => setPage('courses')}>Continue learning <ArrowRight size={16}/></button><span><CalendarDays size={15}/>{todayLabel()}</span></div></div><div className="welcome-illustration"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="book-illustration"><BookOpen size={58}/></div></div></div>
+    <div className="welcome-banner"><div className="welcome-copy"><span className="welcome-label"><Sparkles size={14}/> WELCOME BACK</span><h2>Make today <em>count.</em></h2><p>{pending ? `${pending} task${pending > 1 ? 's' : ''} pending` : 'All caught up 🎉'} · {attendanceRate}% attendance {attendanceRate >= 75 ? '— you’re on track!' : '— let’s bring it up'}</p><div className="welcome-actions"><button className="primary-button" onClick={() => setPage('courses')}>Continue learning <ArrowRight size={16}/></button><span><CalendarDays size={15}/>{todayLabel()}</span></div></div><div className="welcome-illustration"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="book-illustration"><BookOpen size={58}/></div></div></div>
+    {(urgent.length > 0 || attendanceRate < 75) && <div className="alert-banner"><AlarmClock size={18}/><div>{urgent.map(a => <p key={a.id}><strong>{a.title}</strong> — {dueInfo(a).label.toLowerCase()}</p>)}{attendanceRate < 75 && <p><strong>Attendance is {attendanceRate}%</strong> — attend upcoming classes to reach 75%.</p>}</div><button className="primary-button" onClick={() => setPage(urgent.length ? 'assignments' : 'attendance')}>Open <ArrowRight size={14}/></button></div>}
+    <div className="next-grid">{next ? <div className="next-class"><span className="eyebrow">NEXT CLASS · {next.when.toUpperCase()}</span><strong>{next.title}</strong><div className="next-meta"><span><Clock3 size={14}/>{next.time}</span><span><MapPin size={14}/>{next.room}</span><span><CalendarDays size={14}/>{next.day} {next.date}</span></div></div> : <div className="next-class"><span className="eyebrow">NEXT CLASS</span><strong>No more classes this week</strong><div className="next-meta"><span>Enjoy your break or revise your notes.</span></div></div>}
+      <div className="quick-actions"><button onClick={() => setPage('timetable')}><CalendarDays size={18}/>Today’s schedule</button><button onClick={() => setPage('assignments')}><ClipboardList size={18}/>Pending tasks</button><button onClick={() => setPage('materials')}><Download size={18}/>Study notes</button><button onClick={() => setPage('exams')}><NotebookPen size={18}/>Exam slots</button></div></div>
     <div className="stats-grid"><StatCard icon={CalendarCheck} label="Attendance rate" value={`${attendanceRate}%`} detail="Across recent sessions" trend={attendanceRate >= 75 ? 'On track' : 'Needs attention'} tone="green"/><StatCard icon={ChartNoAxesColumn} label="Average score" value={`${Math.round(average)}%`} detail="Published assessments" tone="blue"/><StatCard icon={ClipboardList} label="Pending tasks" value={data.assignments.filter(a => a.status !== 'Submitted').length} detail="Assignments to complete" tone="orange"/><StatCard icon={BookOpen} label="Subjects" value={data.courses.length} detail="In your course" tone="violet"/></div>
     <div className="dashboard-grid"><div className="main-column"><Panel title="Your subjects" subtitle="Pick up where you left off" action={<button className="link-button" onClick={() => setPage('courses')}>View all <ArrowRight size={14}/></button>}><div className="course-list">{data.courses.slice(0, 3).map(c => <button className="course-row" key={c.id} onClick={() => setPage('courses')}><div className={cx('course-symbol', `course-${c.color}`)}><BookOpen size={20}/></div><div className="course-row-main"><div className="course-title-line"><strong>{c.title}</strong><span>{c.progress}%</span></div><span className="course-subtitle">{c.completed} of {c.lessons} lessons completed</span><ProgressBar value={c.progress} color={c.color}/></div><ChevronRight size={17} className="muted-icon"/></button>)}</div></Panel>
       <Panel title="Recent results" subtitle="Your latest published scores" action={<button className="link-button" onClick={() => setPage('marks')}>All results <ArrowRight size={14}/></button>}><div className="result-list">{data.marks.filter(m => m.score !== null && m.status === 'Published').slice(0, 3).map(m => <div className="result-row" key={m.id}><div className="result-subject-icon"><FileText size={17}/></div><div className="result-info"><strong>{m.assessment}</strong><span>{m.subject} · {m.date}</span></div><div className="result-score"><strong>{m.score}<small>/{m.total}</small></strong><span>{getGrade(percent(m.score, m.total))}</span></div></div>)}</div></Panel></div>
