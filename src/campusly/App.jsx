@@ -9,8 +9,7 @@ import {
 } from 'lucide-react'
 import { DEMO_USER, USER, findAccount, registerAccount, setCurrentUser, profileKey, loadDemoData, saveDemoData, resetDemoData, EXAM_SLOTS, FEES } from './data.js'
 import { NotebookPen, Wallet, MapPin, Layers } from 'lucide-react'
-import { MyBatch, AdminPortal } from './BatchSystem.jsx'
-import { ADMIN_USER } from './batches.js'
+import { MyBatch } from './BatchSystem.jsx'
 
 const navGroups = [
   { label: 'LEARNING', items: [
@@ -95,7 +94,6 @@ function Login({ onLogin }) {
         <div className="input-wrap"><LockKeyhole size={18}/><input id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required autoComplete={signup ? 'new-password' : 'current-password'} placeholder={signup ? 'At least 6 characters' : ''}/><button className="icon-button input-icon" type="button" aria-label="Toggle password visibility" onClick={() => setShowPassword(v => !v)}>{showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}</button></div>
         <button className="primary-button login-submit" type="submit">{signup ? 'Create account' : 'Sign in'} <ArrowRight size={17}/></button>
         {!signup && <button type="button" className="secondary-button login-submit" style={{ marginTop: 10 }} onClick={() => { setEmail(DEMO_USER.email); setPassword(DEMO_USER.password); setError('') }}><GraduationCap size={17}/> Use demo student</button>}
-        {!signup && <button type="button" className="secondary-button login-submit" style={{ marginTop: 10 }} onClick={() => { setEmail(ADMIN_USER.email); setPassword(ADMIN_USER.password); setError('') }}><ShieldCheck size={17}/> Use admin team</button>}
               </form>
       <span className="login-version">Student Portal</span>
     </div>
@@ -294,7 +292,6 @@ export default function App() {
   function reset() { setData(resetDemoData()); localStorage.removeItem(profileKey()) }
   function login(acc) { setCurrentUser(acc); localStorage.setItem('campusly-demo-session', acc.email); setData(loadDemoData()); setPage('dashboard'); setLoggedIn(true) }
   if (!loggedIn) return <Login onLogin={login}/>
-  if (USER.role === 'admin') return <AdminPortal user={USER} onLogout={logout}/>
 
   const pageInfo = titles[page] || titles.dashboard
   return <div className="app-shell"><Sidebar page={page} setPage={setPage} data={data} onLogout={logout} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen}/><main className="main-area"><Topbar page={page} setPage={setPage} data={data} setMobileOpen={setMobileOpen} search={search} setSearch={value => { setSearch(value); setShowSearch(Boolean(value.trim())) }}/><div className="content-area">{showSearch && search.trim() ? <><div className="search-page-heading"><div className="eyebrow">PORTAL SEARCH</div><h2>Search results</h2><p>Find courses, assignments, results, and notifications.</p></div><SearchResults query={search} data={data} setPage={id => { setPage(id); setSearch(''); setShowSearch(false) }}/><button className="link-button search-clear" onClick={() => { setSearch(''); setShowSearch(false) }}><X size={15}/> Clear search</button></> : <><div className="mobile-page-heading"><h1>{pageInfo[0]}</h1><p>{pageInfo[1]}</p></div>{page === 'dashboard' && <Dashboard data={data} setPage={setPage}/>}{page === 'courses' && <Courses data={data} setPage={setPage}/>}{page === 'materials' && <Materials data={data} search={search}/>}{page === 'timetable' && <Timetable data={data}/>}{page === 'attendance' && <Attendance data={data}/>}{page === 'marks' && <Marks data={data}/>}{page === 'assignments' && <Assignments data={data} updateData={updateData}/>}{page === 'exams' && <ExamSlots/>}{page === 'batch' && <MyBatch email={USER.email}/>}{page === 'fees' && <Fees/>}{page === 'leave' && <Leave data={data} updateData={updateData}/>}{page === 'certificates' && <Certificates data={data}/>}{page === 'notifications' && <Notifications data={data} updateData={updateData}/>}{page === 'profile' && <Profile data={data} updateData={updateData} onReset={reset}/>}</>}</div><footer className="app-footer"><span>© 2026 Student Portal</span><span><span className="footer-status-dot"/> All systems operational <span className="footer-separator">·</span> Student Portal</span></footer></main><BottomNav page={page} setPage={setPage} setMobileOpen={setMobileOpen}/></div>
