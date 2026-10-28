@@ -83,10 +83,10 @@ export const EXAM_SLOTS = [
 ]
 
 export const FEES = [
-  { id: 'FE-01', title: 'Registration & Admission Fee', amount: 15000, date: '12 Oct 2026', status: 'Paid', receipt: 'RCPT-50121', method: 'UPI' },
+  { id: 'FE-01', title: 'Registration & Admission Fee', amount: 15000, date: '05 Sep 2026', status: 'Paid', receipt: 'RCPT-50121', method: 'UPI' },
   { id: 'FE-02', title: 'Semester 1 Tuition Fee', amount: 35000, date: '15 Oct 2026', status: 'Paid', receipt: 'RCPT-50188', method: 'Net Banking' },
   { id: 'FE-03', title: 'Semester 1 Exam & Lab Fee', amount: 10000, date: '10 Nov 2026', status: 'Pending' },
-  { id: 'FE-04', title: 'Semester 2 Tuition Fee', amount: 15000, date: '15 Jan 2027', status: 'Pending' },
+  { id: 'FE-04', title: 'Semester 2 Tuition Fee', amount: 35000, date: '15 Jan 2027', status: 'Pending' },
 ]
 
 export const USER = { ...DEMO_USER }
