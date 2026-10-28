@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+// @ts-expect-error - App.jsx is plain JavaScript without type declarations
 import { attendanceBuffer, dueInfo } from '../campusly/App.jsx'
 const now = new Date('2026-10-28T09:00:00')
 describe('student helpers', () => {
