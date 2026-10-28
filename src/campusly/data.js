@@ -1,4 +1,3 @@
-import { ADMIN_USER } from './batches.js'
 export const DEMO_USER = {
   name: 'Nihal Hegde',
   email: 'student@campusly.demo',
@@ -103,7 +102,6 @@ export function findAccount(email) {
   const e = String(email).trim().toLowerCase()
   if (!e) return null
   if (e === DEMO_USER.email) return { ...DEMO_USER }
-  if (e === ADMIN_USER.email) return { ...ADMIN_USER }
   return getAccounts().find(a => a.email === e) || null
 }
 export function registerAccount({ name, email, password, program }) {
